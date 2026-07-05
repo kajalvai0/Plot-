@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>মেহেরুননেসা সোসাইটি · প্লট নকশা</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-map: #e0f2f1;
+            --road-color: #78909c;
+            --sold-color: #ffcdd2;
+            --sold-border: #c62828;
+            --booked-color: #ffecb3;
+            --booked-border: #e65100;
+            --available-color: #c8e6c9;
+            --available-border: #1b5e20;
+            --plot-border: #004d40;
+            --text-dark: #00241b;
+            --shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+            --radius: 16px;
+            --transition: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
+            background: #f5f9f9;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1100px;
+            width: 100%;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px 24px 20px;
+        }
+
+        /* ===== HEADER ===== */
+        .map-header {
+            background: linear-gradient(145deg, #00362B, #004d40);
+            color: #fff;
+            text-align: center;
+            padding: 28px 18px;
+            border-radius: var(--radius);
+            margin-bottom: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+        .map-header::after {
+            content: "🏡";
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            font-size: 56px;
+            opacity: 0.12;
+        }
+        .map-header h1 {
+            font-size: 28px;
+            letter-spacing: 1px;
+            font-weight: 600;
+            color: #ffe082;
+        }
+        .map-header h1 span {
+            font-weight: 300;
+            color: #fff;
+            font-size: 20px;
+        }
+        .map-header p {
+            margin-top: 6px;
+            font-size: 16px;
+            opacity: 0.85;
+        }
+
+        /* ===== MAP GRID (overlay flip) ===== */
+        .map-body {
+            border: 3px solid #004d40;
+            border-radius: 14px;
+            background: #fafefe;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 1fr 20px 1.2fr 1.2fr 1fr;
+            grid-gap: 8px;
+            position: relative;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.03);
+        }
+
+        /* প্রতিটি প্লট একটি ফ্লিপ কন্টেইনার */
+        .plot-flip {
+            perspective: 800px;
+            min-height: 80px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .plot-flip .flip-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            min-height: 80px;
+        }
+        .plot-flip.flipped .flip-inner {
+            transform: rotateY(180deg);
+        }
+
+        .plot-front, .plot-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dark);
+            border: 2px solid var(--plot-border);
+            background: var(--bg-map);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: border 0.2s;
+        }
+
+        .plot-front {
+            background: var(--bg-map);
+        }
+        /* ব্যাকগ্রাউন্ড স্ট্যাটাস অনুযায়ী */
+        .status-booked .plot-front { background: var(--booked-color); border-color: var(--booked-border); }
+        .status-sold .plot-front { background: var(--sold-color); border-color: var(--sold-border); }
+        .status-available .plot-front { background: var(--available-color); border-color: var(--available-border); }
+
+        .plot-back {
+            transform: rotateY(180deg);
+            background: #ffffff;
+            border-color: #004d40;
+            justify-content: center;
+            gap: 4px;
+            padding: 10px 6px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            z-index: 10;
+        }
+        .plot-back .back-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #00362B;
+            border-bottom: 1px solid #b2dfdb;
+            padding-bottom: 6px;
+            width: 100%;
+            margin-bottom: 6px;
+        }
+        .plot-back .back-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 11px;
+            padding: 3px 0;
+            border-bottom: 1px dashed #e0e8e5;
+        }
+        .plot-back .back-row:last-child {
+            border-bottom: none;
+        }
+        .plot-back .back-label {
+            color: #4d6b66;
+            font-weight: 500;
+        }
+        .plot-back .back-value {
+            font-weight: 700;
+            color: #00241b;
+        }
+        .plot-back .back-total {
+            color: #b71c1c;
+            font-size: 13px;
+        }
+        .plot-back .back-status {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 30px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            background: #2e7d32;
+        }
+        .back-status.available { background: #1b5e20; }
+        .back-status.booked { background: #e65100; }
+        .back-status.sold { background: #b71c1c; }
+
+        .plot-number {
+            background: #004d40;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .status-sold .plot-number { background: var(--sold-border); }
+        .status-booked .plot-number { background: var(--booked-border); }
+        .status-available .plot-number { background: var(--available-border); }
+
+        .size-badge {
+            font-size: 10px;
+            background: rgba(255,255,255,0.5);
+            padding: 2px 8px;
+            border-radius: 30px;
+            backdrop-filter: blur(2px);
+            font-weight: 500;
+        }
+        .status-tag {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 500;
+            letter-spacing: 0.4px;
+        }
+
+        /* স্পেসিফিক গ্রিড সাইজ */
+        .plot-flip-6 { grid-column: 1; grid-row: 1 / span 2; min-height: 130px; }
+        .plot-flip-5 { grid-column: 1; grid-row: 3; min-height: 110px; }
+        .plot-flip-1 { grid-column: 1; grid-row: 4 / span 2; min-height: 200px; }
+        .plot-flip-7 { grid-column: 3 / span 2; grid-row: 1; min-height: 100px; }
+        .plot-flip-8 { grid-column: 3; grid-row: 2; min-height: 95px; }
+        .plot-flip-b { grid-column: 4; grid-row: 2; min-height: 95px; }
+        .plot-flip-3 { grid-column: 3; grid-row: 4; min-height: 110px; }
+        .plot-flip-2 { grid-column: 3; grid-row: 5; min-height: 110px; }
+        .plot-flip-9 { grid-column: 4; grid-row: 4; min-height: 110px; }
+        .plot-flip-10 { grid-column: 4; grid-row: 5; min-height: 110px; }
+
+        .road-vertical {
+            grid-column: 2;
+            grid-row: 1 / span 5;
+            background: #b2dfdb;
+            border: 1px solid #004d40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            margin: 2px 0;
+        }
+        .road-vertical span {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            font-size: 11px;
+            color: #004d40;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .road-horizontal {
+            grid-column: 3 / span 2;
+            grid-row: 3;
+            background: #b2dfdb;
+            border: 1px solid #004d40;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #004d40;
+            font-weight: 700;
+            border-radius: 30px;
+            letter-spacing: 0.5px;
+        }
+
+        .side-info {
+            grid-column: 5;
+            grid-row: 1 / span 5;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding-left: 4px;
+            gap: 6px;
+        }
+        .building-box {
+            border: 1px dashed #37474f;
+            padding: 10px 2px;
+            font-size: 11px;
+            background: #eceff1;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 600;
+            color: #263238;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+
+        .main-road {
+            background: #455a64;
+            color: white;
+            text-align: center;
+            padding: 14px 8px;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 40px;
+            margin-top: 18px;
+            letter-spacing: 0.8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+
+        /* ===== FOOTER ===== */
+        .map-footer {
+            background: #ffe082;
+            padding: 18px 20px;
+            text-align: center;
+            border: 2px solid #004d40;
+            border-radius: var(--radius);
+            margin-top: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 18px 30px;
+        }
+        .footer-title {
+            font-weight: 500;
+            color: #1f2e2a;
+            font-size: 15px;
+        }
+        .footer-name {
+            font-size: 22px;
+            color: #b71c1c;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .footer-phone {
+            background: #004d40;
+            color: white;
+            padding: 10px 28px;
+            border-radius: 60px;
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .footer-phone:hover {
+            background: #00362B;
+            transform: scale(1.02);
+        }
+
+        @media (max-width: 820px) {
+            .map-body { grid-template-columns: 1fr 14px 1fr 1fr 0.8fr; }
+        }
+        @media (max-width: 500px) {
+            .container { padding: 12px; }
+            .plot-flip { min-height: 60px; }
+            .plot-front, .plot-back { font-size: 10px; }
+            .plot-number { width: 22px; height: 22px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="map-header">
+        <h1>মেহেরুননেসা সোসাইটি <span>· চকমোক্তার, নওগাঁ</span></h1>
+        <p>📌 প্লটে ক্লিক করুন — তথ্য ফ্লিপ হয়ে দেখুন</p>
+    </div>
+
+    <div class="map-body">
+        <!-- প্লট ১ -->
+        <div class="plot-flip plot-flip-1 status-booked" onclick="flipPlot(this, 1)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">১</div>
+                    <div style="writing-mode: vertical-rl; text-orientation: mixed; margin:4px 0; font-weight:500;">৫২৫৭৩ সহঃ</div>
+                    <div class="size-badge">৫.০০ কাঠা</div>
+                    <span class="status-tag">বুকড</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ১</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৫.০০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">বুকড</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">বুকড</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">৫২৫৭৩ সহঃ</span></div>
+                    <div><span class="back-status booked">বুকড</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="road-vertical"><span>রাস্তা ৪+৩+৩ = ১০ ফুট</span></div>
+
+        <!-- প্লট ২ -->
+        <div class="plot-flip plot-flip-2 status-sold" onclick="flipPlot(this, 2)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">২</div>
+                    <div style="font-size:11px; font-weight:700; color:#b71c1c;">SOLD</div>
+                    <div class="size-badge">৪.০০ কাঠা</div>
+                    <span class="status-tag">বিক্রিত</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ২</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৪.০০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">বিক্রিত</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">বিক্রিত</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">—</span></div>
+                    <div><span class="back-status sold">বিক্রিত</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৩ -->
+        <div class="plot-flip plot-flip-3 status-available" onclick="flipPlot(this, 3)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৩</div>
+                    <div>০৪০৭ সহঃ</div>
+                    <div class="size-badge">২.৪৭ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৩</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.৪৭ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৩৭,০৫,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৪০৭ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৫ -->
+        <div class="plot-flip plot-flip-5 status-available" onclick="flipPlot(this, 5)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৫</div>
+                    <div>০৪১৫ সহঃ</div>
+                    <div class="size-badge">৩.০০ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৫</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৩.০০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৪৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৪১৫ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৬ -->
+        <div class="plot-flip plot-flip-6 status-available" onclick="flipPlot(this, 6)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৬</div>
+                    <div>০৩৬৩ সহঃ</div>
+                    <div class="size-badge">২.২০ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৬</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.২০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১২,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">২৬,৪০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৩৬৩ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৭ -->
+        <div class="plot-flip plot-flip-7 status-available" onclick="flipPlot(this, 7)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৭</div>
+                    <div>০৫৪১ সহঃ</div>
+                    <div class="size-badge">৩.২৮ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৭</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৩.২৮ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১২,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৩৯,৩৬,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৫৪১ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৪ (২.০৬) -->
+        <div class="plot-flip plot-flip-8 status-available" onclick="flipPlot(this, '8')">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৪</div>
+                    <div>০৩৩০ সহঃ</div>
+                    <div class="size-badge">২.০৬ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৪</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.০৬ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">বিক্রিত</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">বিক্রিত</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">—</span></div>
+                    <div><span class="back-status sold">বিক্রিত</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৩ -->
+        <div class="plot-flip plot-flip-3 status-available" onclick="flipPlot(this, 3)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৩</div>
+                    <div>০৪০৭ সহঃ</div>
+                    <div class="size-badge">২.৪৭ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৩</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.৪৭ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৩৭,০৫,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৪০৭ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৫ -->
+        <div class="plot-flip plot-flip-5 status-available" onclick="flipPlot(this, 5)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৫</div>
+                    <div>০৪১৫ সহঃ</div>
+                    <div class="size-badge">৩.০০ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৫</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৩.০০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৪৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৪১৫ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৬ -->
+        <div class="plot-flip plot-flip-6 status-available" onclick="flipPlot(this, 6)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৬</div>
+                    <div>০৩৬৩ সহঃ</div>
+                    <div class="size-badge">২.২০ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৬</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.২০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১২,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">২৬,৪০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৩৬৩ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+         <!-- প্লট ৭ -->
+        <div class="plot-flip plot-flip-7 status-available" onclick="flipPlot(this, 7)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৭</div>
+                    <div>০৫৪১ সহঃ</div>
+                    <div class="size-badge">৩.২৮ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৭</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৩.২৮ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১২,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৩৯,৩৬,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৫৪১ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৪ (২.০৬) -->
+        <div class="plot-flip plot-flip-8 status-available" onclick="flipPlot(this, '8')">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৪</div>
+                    <div>০৩৩০ সহঃ</div>
+                    <div class="size-badge">২.০৬ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৪</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.০৬ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৩,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">২৬,৭৮,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৩৩০ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- প্লট ৮ (২.০০) -->
+        <div class="plot-flip plot-flip-b status-available" onclick="flipPlot(this, '4')">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৮</div>
+                    <div>০৩৪০ সহঃ</div>
+                    <div class="size-badge">২.০০ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৮</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">২.০০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৩০,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৩৪০ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="road-horizontal">রাস্তা ৪+৩+৩ = ১০ ফুট</div>
+
+        <!-- প্লট ৯ -->
+        <div class="plot-flip plot-flip-9 status-available" onclick="flipPlot(this, 9)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">৯</div>
+                    <div>০৪৯৬ সহঃ</div>
+                    <div class="size-badge">৩.০০ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ৯</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৩.০০ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৪৫,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৪৯৬ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+<!-- প্লট ১০ -->
+        <div class="plot-flip plot-flip-10 status-available" onclick="flipPlot(this, 10)">
+            <div class="flip-inner">
+                <div class="plot-front">
+                    <div class="plot-number">১০</div>
+                    <div>০৭৬৪ সহঃ</div>
+                    <div class="size-badge">৪.৬৩ কাঠা</div>
+                    <span class="status-tag">উপলব্ধ</span>
+                </div>
+                <div class="plot-back">
+                    <div class="back-title">প্লট ১০</div>
+                    <div class="back-row"><span class="back-label">পরিমাণ</span><span class="back-value">৪.৬৩ কাঠা</span></div>
+                    <div class="back-row"><span class="back-label">প্রতি কাঠা</span><span class="back-value">১৮,০০,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">মোট</span><span class="back-value back-total">৮৩,৩৪,০০০/-</span></div>
+                    <div class="back-row"><span class="back-label">দাগ</span><span class="back-value">০৭৬৪ সহঃ</span></div>
+                    <div><span class="back-status available">উপলব্ধ</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-info">
+            <div class="building-box">🏠 ১ তলা বাড়ী</div>
+            <div style="font-size: 12px; text-align: center; font-weight: 700; color:#455a64;">⬇</div>
+            <div class="building-box">🏢 ৩ তলা বাড়ী</div>
+        </div>
+    </div>
+
+    <div class="main-road">🛣️ (২০ ফুট পিচ ঢালা রাস্তা) দুর্গাপুর টু দয়ালের মোড় রোড</div>
+
+    <div class="map-footer">
+        <span class="footer-title">🏡 জমি সম্পর্কিত যেকোনো প্রশ্নে সরাসরি যোগাযোগ করুন</span>
+        <span class="footer-name">কাজী আশরাফ আলী</span>
+        <a href="tel:01535491716" class="footer-phone">📞 ০১৫৩৫-৪৯১৭১৬</a>
+    </div>
+</div>
+
+<script>
+    // ফ্লিপ টগল (পূর্বের ফ্লিপ রিসেট)
+    let currentFlipped = null;
+
+    function flipPlot(element, plotId) {
+        // যদি আগের ফ্লিপ থাকে, তা আনফ্লিপ করো
+        if (currentFlipped && currentFlipped !== element) {
+            currentFlipped.classList.remove('flipped');
+        }
+        // বর্তমান এলিমেন্টে ফ্লিপ টগল
+        element.classList.toggle('flipped');
+        // আপডেট currentFlipped (শুধু যদি ফ্লিপ করা হয়)
+        if (element.classList.contains('flipped')) {
+            currentFlipped = element;
+        } else {
+            currentFlipped = null;
+        }
+        // ডাটা লগ (অপশনাল)
+        console.log('প্লট:', plotId);
+    }
+
+    // প্রাথমিক অবস্থায় কোনো প্লট ফ্লিপ থাকবে না
+    window.addEventListener('load', () => {
+        // শুধু ডেমো: প্রথম প্লটটাকে ফ্লিপ করে দেখানো যেতে পারে, কিন্তু না রাখলেও চলে
+        // এখানে কিছু করছি না
+    });
+</script>
+</body>
+</html>
